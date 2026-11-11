@@ -380,7 +380,7 @@ const createInventoryTransaction = async (req, res) => {
           0,
           Number(woTx[0]?.res_qty || 0) - Number(woTx[0]?.iss_qty || 0) - Number(woTx[0]?.ret_qty || 0)
         );
-        reservedToRelease = Math.min(rawQty, netWoReserved, reservedQty);
+        reservedToRelease = Math.min(rawQty, netWoReserved > 0 ? netWoReserved : reservedQty, reservedQty);
       } else if (reservedQty > 0) {
         // Fallback when Issue is called without explicit work_order_id after a Reservation
         reservedToRelease = Math.min(rawQty, reservedQty);

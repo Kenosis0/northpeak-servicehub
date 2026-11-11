@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { QrCode, Calendar, ShieldCheck, MapPin, Wrench, History } from 'lucide-react';
+import { QrCode, Calendar, ShieldCheck, MapPin, Wrench, History, Search, AlertCircle, CheckCircle2, X } from 'lucide-react';
 import api from '../../services/api';
 import StatusBadge from '../../components/StatusBadge';
 import QRModal from '../../components/QRModal';
@@ -8,6 +8,10 @@ export default function MyEquipmentHistory() {
   const [equipment, setEquipment] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedQrUnit, setSelectedQrUnit] = useState(null);
+
+  // Interactive QR Token Lookup (TC-004 & TC-014 Tenant Isolation Verification)
+  const [qrLookupToken, setQrLookupToken] = useState('');
+  const [qrLookupFeedback, setQrLookupFeedback] = useState({ type: '', message: '' });
 
   useEffect(() => {
     async function loadEquipment() {
@@ -23,6 +27,29 @@ export default function MyEquipmentHistory() {
     loadEquipment();
   }, []);
 
+  const handleVerifyQrToken = async (tokenToCheck) => {
+    const clean = String(tokenToCheck ?? qrLookupToken).trim();
+    if (!clean) return;
+    setQrLookupToken(clean);
+    setQrLookupFeedback({ type: '', message: '' });
+    try {
+      const res = await api.get(`/equipment/qr/${encodeURIComponent(clean)}`);
+      const unit = res.data.equipment;
+      setQrLookupFeedback({
+        type: 'success',
+        message: `Verified QR [${unit.qr_token}]: ${unit.brand} ${unit.model} (${unit.installed_location}) — Next PM Due: ${unit.next_pm_date || 'N/A'}`
+      });
+      setSelectedQrUnit(unit);
+    } catch (err) {
+      setQrLookupFeedback({
+        type: 'error',
+        message:
+          err.response?.data?.message ||
+          `HTTP ${err.response?.status || 403}: Access denied or QR token not found.`
+      });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -32,6 +59,75 @@ export default function MyEquipmentHistory() {
         <p className="text-xs text-slate-500 mt-0.5">
           View your QR-tagged aircon units, automated Preventive Maintenance (PM) due dates, and complete technician service history.
         </p>
+      </div>
+
+      {/* QR Token Lookup & Multi-Tenant Isolation Verifier (TC-004 & TC-014) */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <QrCode className="w-4 h-4 text-[#0284C7]" />
+            <span className="text-xs font-bold text-slate-900">
+              Quick QR Sticker Verification (TC-004 & TC-014 Multi-Tenant Isolation)
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => handleVerifyQrToken('NP-QR-2026-0001')}
+              className="px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-[11px] font-mono font-bold"
+            >
+              Test Own QR: NP-QR-2026-0001
+            </button>
+            <button
+              type="button"
+              onClick={() => handleVerifyQrToken('NP-QR-2026-0003')}
+              className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 text-[11px] font-mono font-bold"
+            >
+              Test Other Customer QR (TC-014 403): NP-QR-2026-0003
+            </button>
+          </div>
+        </div>
+
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={qrLookupToken}
+            onChange={(e) => setQrLookupToken(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleVerifyQrToken(qrLookupToken)}
+            placeholder="Enter QR Token (e.g. NP-QR-2026-0001)..."
+            className="flex-1 px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-mono font-bold"
+          />
+          <button
+            type="button"
+            onClick={() => handleVerifyQrToken(qrLookupToken)}
+            className="px-4 py-2 rounded-xl bg-[#0284C7] hover:bg-sky-700 text-white text-xs font-bold flex items-center gap-1.5"
+          >
+            <Search className="w-3.5 h-3.5" />
+            Verify QR
+          </button>
+        </div>
+
+        {qrLookupFeedback.message && (
+          <div
+            className={`p-3 rounded-xl border text-xs font-semibold flex items-center justify-between ${
+              qrLookupFeedback.type === 'success'
+                ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
+                : 'bg-rose-50 border-rose-300 text-rose-800'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              {qrLookupFeedback.type === 'success' ? (
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              ) : (
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+              )}
+              <span>{qrLookupFeedback.message}</span>
+            </div>
+            <button onClick={() => setQrLookupFeedback({ type: '', message: '' })}>
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
       </div>
 
       {loading ? (

@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
-    "seed": "node src/utils/seedRunner.js"
+    "seed": "node src/utils/seedRunner.js",
+    "verify:matrix": "node src/utils/verifyMatrixTC001_TC014.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
